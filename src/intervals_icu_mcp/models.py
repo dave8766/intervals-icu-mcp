@@ -174,16 +174,20 @@ class SportSettings(BaseModel):
             is_swim = pace_load_type == "SWIM" or any(
                 isinstance(t, str) and t in _SWIM_SPORT_TYPES for t in sport_types
             )
-            # The API stores RUN pace as min/km (5:45/km -> 5.75) but SWIM pace as
-            # SPEED in m/s (0:25/100m -> 4.0). Convert swim m/s -> min/100m; use the
-            # run pace directly. (Sending swim as min/100m stored a bogus speed, #88.)
+            # The API stores threshold_pace as SPEED in m/s for every sport — run as
+            # well as swim (4:31/km -> 3.69 m/s; 0:25/100m -> 4.0 m/s). pace_units is
+            # only the athlete's display preference. Convert to the MCP pace units:
+            # swim m/s -> min/100m, run m/s -> min/km. (Treating the run value as
+            # min/km rendered 3.69 m/s as "3:41 /km"; swim history in #88.)
             if is_swim:
                 if normalized.get("swim_threshold") is None:
                     normalized["swim_threshold"] = (
                         (100.0 / threshold_pace) / 60.0 if threshold_pace else None
                     )
             elif normalized.get("pace_threshold") is None:
-                normalized["pace_threshold"] = threshold_pace
+                normalized["pace_threshold"] = (
+                    (1000.0 / threshold_pace) / 60.0 if threshold_pace else None
+                )
 
         return normalized
 

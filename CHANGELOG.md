@@ -14,6 +14,11 @@ that preserve the information (key renames, restructuring, added fields) ship in
 clients. (Releases up to and including 4.0.0 treated any response-shape change as
 breaking; this narrower contract applies from the next release onward.)
 
+## [Unreleased]
+
+### Fixed
+- Run `pace_threshold` was rendered from the wrong unit: `icu_get_sport_settings`, `icu_get_athlete_profile`, and the `icu_create_sport_settings` / `icu_update_sport_settings` echoes formatted the API's `threshold_pace` as if it were min/km, but Intervals.icu stores `threshold_pace` as **speed in m/s for every sport** — `pace_units` is only the athlete's display preference. A 4:31/km threshold (3.69 m/s) came back as `3:41 /km`, and a 4:23/km threshold as `3:48 /km` — a plausible-looking number that is simply wrong, so nothing flagged it. The write path had the mirror-image fault: `pace_threshold=4.5` (meant as 4:30/km) was sent as-is and stored as 4.5 m/s, i.e. 3:42/km. Read and write now convert m/s ↔ min/km (`1000 / (min × 60)`), the same shape the swim path has used since #88. The swim threshold, the pace zones (percent of threshold), and the pace curves were checked and are unaffected; the tool parameters still take min/km and min/100m.
+
 ## [5.0.1] — 2026-09-10
 
 ### Fixed
