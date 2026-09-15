@@ -124,3 +124,36 @@ class TestPromptToolReferences:
 
         source = inspect.getsource(server_mod)
         assert not re.findall(r"icu_icu_\w+", source)
+
+
+class TestUnauthenticatedExposureWarning:
+    """`--host 0.0.0.0` with no auth is the configuration that leaks an
+    Intervals.icu API key to the internet. It stays legal (tunnels and
+    authenticating proxies are valid deployments) but must never be silent.
+    """
+
+    def _warn(self, capsys, argv: list[str]) -> str:
+        from intervals_icu_mcp.server import _parse_args, _warn_if_publicly_unauthenticated
+
+        _warn_if_publicly_unauthenticated(_parse_args(argv))
+        return capsys.readouterr().err
+
+    def test_warns_on_public_http_without_auth(self, capsys):
+        assert "WARNING" in self._warn(capsys, ["--transport", "http", "--host", "0.0.0.0"])
+
+    def test_warns_on_public_sse_without_auth(self, capsys):
+        assert "WARNING" in self._warn(capsys, ["--transport", "sse", "--host", "0.0.0.0"])
+
+    def test_warns_on_ipv6_wildcard(self, capsys):
+        assert "WARNING" in self._warn(capsys, ["--transport", "http", "--host", "::"])
+
+    def test_silent_on_stdio(self, capsys):
+        assert self._warn(capsys, []) == ""
+
+    def test_silent_on_loopback_http(self, capsys):
+        """Bound to localhost the OS is still the boundary — nothing to warn about."""
+        assert self._warn(capsys, ["--transport", "http", "--host", "127.0.0.1"]) == ""
+
+    def test_silent_when_auth_is_configured(self, capsys, monkeypatch):
+        monkeypatch.setenv("INTERVALS_ICU_AUTH", "github")
+        assert self._warn(capsys, ["--transport", "http", "--host", "0.0.0.0"]) == ""

@@ -10,8 +10,15 @@ from fastmcp import FastMCP
 # Load environment variables
 load_dotenv()
 
-# Initialize FastMCP server
-mcp = FastMCP("intervals_icu_mcp")
+from .remote_auth import RemoteAuthConfig, build_auth_provider
+
+# Initialize FastMCP server.
+#
+# The auth provider has to be resolved before the server object exists, since
+# FastMCP takes it as a constructor argument. It is None — an unauthenticated
+# server, the historical behaviour — unless INTERVALS_ICU_AUTH says otherwise.
+# See remote_auth.py for why the GitHub mode insists on an allowlist.
+mcp = FastMCP("intervals_icu_mcp", auth=build_auth_provider())
 
 # Register middleware
 from .auth import load_config
@@ -1143,7 +1150,32 @@ def _emit_startup_log() -> None:
     except Exception:
         count = -1
     print(
-        f"intervals-icu MCP starting: delete_mode={_DELETE_MODE}, registered_tools={count}",
+        f"intervals-icu MCP starting: delete_mode={_DELETE_MODE}, "
+        f"registered_tools={count}, auth={RemoteAuthConfig().auth}",
+        file=sys.stderr,
+    )
+
+
+def _warn_if_publicly_unauthenticated(args: argparse.Namespace) -> None:
+    """Warn when the server is about to serve HTTP on a public interface with
+    no auth configured.
+
+    Over stdio the OS is the access boundary. Over HTTP bound to 0.0.0.0 there
+    is none, and MCP supplies none of its own: every caller who reaches the URL
+    gets the full tool surface under this deployment's Intervals.icu key. That
+    is a legitimate setup behind a tunnel or an authenticating proxy, so this
+    stays a warning rather than a hard failure — but it should never be silent.
+    """
+    if args.transport == "stdio" or args.host not in ("0.0.0.0", "::"):
+        return
+    if RemoteAuthConfig().auth != "none":
+        return
+    print(
+        "WARNING: serving MCP over HTTP on "
+        f"{args.host}:{args.port} with INTERVALS_ICU_AUTH=none. Anyone who can "
+        "reach this URL can call every registered tool using your Intervals.icu "
+        "API key. Set INTERVALS_ICU_AUTH=github, or keep the server behind a "
+        "tunnel or authenticating proxy. See docs/remote-deployment.md.",
         file=sys.stderr,
     )
 
@@ -1152,6 +1184,7 @@ def main() -> None:
     """Main entry point for the Intervals.icu MCP server."""
     args = _parse_args()
     _emit_startup_log()
+    _warn_if_publicly_unauthenticated(args)
 
     if args.transport == "stdio":
         mcp.run()

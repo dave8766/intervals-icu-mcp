@@ -26,8 +26,10 @@ import pytest  # noqa: E402
 import respx  # noqa: E402
 
 from intervals_icu_mcp.auth import ICUConfig  # noqa: E402
+from intervals_icu_mcp.remote_auth import RemoteAuthConfig  # noqa: E402
 
 ICUConfig.model_config["env_file"] = None
+RemoteAuthConfig.model_config["env_file"] = None
 
 
 @pytest.fixture

@@ -237,7 +237,7 @@ Destructive tools are gated by the optional `INTERVALS_ICU_DELETE_MODE` env var 
 
 The server runs over **stdio** by default — the right transport for local clients like Claude Desktop, Claude Code, and Cursor. HTTP and SSE transports are available for remote or hosted use.
 
-> ⚠️ MCP has **no built-in authentication** — never expose an HTTP-mode server to an untrusted network without a tunnel (Tailscale, Cloudflare Tunnel) or an authenticating reverse proxy.
+> ⚠️ HTTP mode is **unauthenticated by default** — anyone who reaches the URL can call every tool with your Intervals.icu API key. Set `INTERVALS_ICU_AUTH=github` to require GitHub OAuth (with a mandatory allowlist of permitted logins), or keep the server behind a tunnel (Tailscale, Cloudflare Tunnel) or an authenticating reverse proxy.
 
 See [docs/remote-deployment.md](https://github.com/hhopke/intervals-icu-mcp/blob/main/docs/remote-deployment.md) for transport flags and the full security model.
 
